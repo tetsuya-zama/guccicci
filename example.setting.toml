@@ -1,0 +1,32 @@
+num_of_teams = 2
+flat = false
+
+[[attendees]]
+leader = true
+    [attendees.person]
+    name = "Mike"
+
+
+
+[[attendees]]
+leader = true
+    [attendees.person]
+    name = "John"
+
+[[attendees]]
+leader = true
+    [attendees.person]
+    name = "Lisa"
+
+
+[[attendees]]
+    [attendees.person] 
+    name = "Beth"
+
+[[attendees]]
+    [attendees.person]
+    name = "Takashi"
+
+[[attendees]]
+    [attendees.person]
+    name = "Yoko"
