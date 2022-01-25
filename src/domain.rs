@@ -3,18 +3,29 @@ use anyhow::{Result};
 use thiserror::{Error};
 
 
+/// 人物を表すStruct
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Person {
+    /// 人物の名前
     pub name: String
 }
 
+/// チームを表すStruct
 #[derive(Debug, Serialize)]
 pub struct Team {
+    /// チームリーダー
     pub leader: Person,
+    /// チームメンバー
     pub member: Vec<Person>
 }
 
 impl Team {
+    /// 新しいチームを作成する
+    /// # Attributes
+    /// * `leader` - チームのリーダー
+    /// 
+    /// # Returns
+    /// `leader`がリーダー`Team`のインスタンス
     pub fn new(leader: Person) -> Team {
         Team {
             leader,
@@ -22,6 +33,14 @@ impl Team {
         }
     }
 
+    /// リーダー候補者とチーム数からチームを複数作成する
+    /// 
+    /// # Attributes
+    /// * `leader_candidates` - リーダー候補者
+    /// * `num_of_teams` - チーム数
+    /// 
+    /// # Returns
+    /// (作成されたチームのVec, リーダー候補者のうちリーダーになっていない人のVec)のタプル
     pub fn create_by_leader_candidates(mut leader_candidates: Vec<Person>, num_of_teams: u8) -> (Vec<Team>, Vec<Person>) {
         let mut res: Vec<Team> = Vec::new();
 
@@ -33,21 +52,38 @@ impl Team {
         (res, leader_candidates)
     }
 
+    /// チームにメンバーをアサインする
+    /// # Attributes
+    /// * `new_member` - アサインしたいメンバー
     pub fn assign(&mut self, new_member: Person) {
         self.member.push(new_member);
     }
 }
 
+/// 配列のシャッフルの仕方を定義するStrategy
 pub trait VecShuffleStrategy {
+    /// `vec`に与えられたVec<T>をシャッフルする。
+    /// `vec`を破壊するメソッドである点注意
+    /// # Attributes
+    /// * `vec` - シャッフルしたい対象のVec
     fn shuffle<T>(&self, vec: &mut Vec<T>) -> Result<()>;
 }
 
+/// `Team`の集約
 #[derive(Debug, Serialize)]
 pub struct Teams {
+    /// `Team`のリスト
     team: Vec<Team>
 }
 
 impl Teams {
+    /// 設定値から`Team`の集約を作成する
+    /// # Attributes
+    /// * `setting` - ユーザーから与えられた設定値
+    /// * `shuffle_strategy` - `Vec`のshuffleの仕方
+    /// 
+    /// # Returns
+    /// Result<作成された`Teams`, anyhow::Error>
     pub fn create(setting: TeamsCreationSetting, shuffle_strategy: &impl VecShuffleStrategy) -> Result<Teams> {
         setting.validate()?;
 
@@ -73,43 +109,66 @@ impl Teams {
         Ok(Teams {team:teams_vec})
     }
 
+    /// Vecとして借用する
+    /// # Returns
+    /// `team`のリスト
     pub fn borrow_vec(&self) -> &Vec<Team> {
         &self.team
     }
 }
 
+/// 参加者を表すstruct
 #[derive(Debug, Deserialize)]
 pub struct Attendee {
+    /// 人物
     person: Person,
+    /// リーダになりうるか
     leader: Option<bool>
 }
 
 impl Attendee {
+    /// リーダになりうるかを返す
+    /// # Returns
+    /// リーダー候補であればtrue
     pub fn is_leader(&self) -> bool {
         self.leader.unwrap_or(false)
     }
 }
 
+/// チーム作成設定に関するエラー
 #[derive(Debug,Error)]
 pub enum TeamsCreationSettingError {
+    /// チーム数にゼロが設定されている
     #[error("num_of_teams must be more than zero.")]
     NumOfTeamsZero,
+    /// チーム数に対してリーダー候補が少なすぎる
     #[error("num of leader candidates({0}) must be equal or grater than num of teams({1})")]
     LeadersLack(u8,u8)
 }
 
+/// チーム作成設定
 #[derive(Debug, Deserialize)]
 pub struct  TeamsCreationSetting {
+    /// 出席者のリスト
     attendees: Vec<Attendee>,
+    /// チーム数
     num_of_teams: u8,
+    /// フラットフラグ
+    /// trueの場合はAttendeeのis_leaderの値を無視して全員リーダー候補とみなす
     flat: Option<bool>
 }
 
 impl TeamsCreationSetting {
+    /// フラットフラグの値を返す
+    /// # Returns
+    /// 全員をリーダー候補とみなす場合はtrue
     pub fn is_flat(&self) -> bool {
         self.flat.unwrap_or(false)
     }
 
+    /// リーダー候補の参加者を返す
+    /// # Returns
+    /// リーダー候補の`Person`のリスト
     pub fn leader_candidates(&self) -> Vec<&Person> {
         if self.is_flat() {
             self.all_people()
@@ -118,6 +177,9 @@ impl TeamsCreationSetting {
         }
     }
 
+    /// リーダー候補以外の参加者を返す
+    /// # Returns
+    /// リーダー候補以外の`Person`のリスト
     pub fn normal_attendees(&self) -> Vec<&Person> {
         if self.is_flat() {
             Vec::new()
@@ -126,10 +188,16 @@ impl TeamsCreationSetting {
         }
     }
 
+    /// 全ての参加者を返す
+    /// # Returns
+    /// 全ての参加者の`Person`のリスト
     pub fn all_people(&self) -> Vec<&Person> {
         self.attendees.iter().map(|a| &a.person).collect()
     }
 
+    /// チーム作成設定を検証する
+    /// # Returns
+    /// 検証エラーがなければOk<()>, エラーがあればErr<TeamsCreationSettingError>
     pub fn validate(&self) -> Result<(), TeamsCreationSettingError> {
         let num_of_leader_candidates = self.leader_candidates().len();
 
@@ -150,6 +218,9 @@ impl TeamsCreationSetting {
 mod tests {
     use super::*;
 
+    /// Attendee#is_leaderのテスト
+    /// Noneであればデフォルト値であるfalseを返し、
+    /// Someであればその値を返す
     #[test]
     fn attendee_is_leader() {
         let attendee1 = Attendee{
@@ -172,6 +243,9 @@ mod tests {
         assert_eq!(attendee3.is_leader(), true);
     }
 
+    /// TeamsCreationSetting#is_flatのテスト
+    /// Noneであればデフォルト値であるfalseを返し、
+    /// Someであればその値を返す
     #[test]
     fn setting_is_flat() {
         let setting1 = TeamsCreationSetting{
@@ -210,6 +284,8 @@ mod tests {
         assert_eq!(setting3.is_flat(), false);
     }
 
+    /// TeamsCreationSetting#validateのテスト
+    /// Okの場合
     #[test]
     fn setting_validation_ok() {
         let setting = TeamsCreationSetting{
@@ -229,6 +305,8 @@ mod tests {
         }
     }
 
+    /// TeamsCreationSetting#validateのテスト
+    /// チーム数が0の場合はバリデーションエラー
     #[test]
     fn setting_validation_zero_teams() {
         let setting = TeamsCreationSetting{
@@ -253,6 +331,8 @@ mod tests {
         }
     }
 
+    /// TeamsCreationSetting#validateのテスト
+    /// チーム数よりもリーダー候補者が少なければバリデーションエラー
     #[test]
     fn setting_validation_leaders_lack() {
         let setting = TeamsCreationSetting{
@@ -277,6 +357,8 @@ mod tests {
         }
     }
 
+    /// TeamsCreationSetting#leader_candidates, TeamsCreationSetting#normal_attendees, TeamsCreationSetting#all_peopleのテスト
+    /// is_flatがfalseであればそれぞれリーダー候補者、リーダ候補者以外、全ての参加者をそのまま返す
     #[test]
     fn attendees_no_flat() {
         let setting = TeamsCreationSetting{
@@ -295,6 +377,8 @@ mod tests {
         assert_eq!(setting.all_people().len(), 4);
     }
 
+    /// TeamsCreationSetting#leader_candidates, TeamsCreationSetting#normal_attendees, TeamsCreationSetting#all_peopleのテスト
+    /// is_flatがtrueであればリーダー候補者 = 全ての参加者, リーダ候補者以外 = []となる
     #[test]
     fn attendees_flat() {
         let setting = TeamsCreationSetting{
@@ -313,6 +397,8 @@ mod tests {
         assert_eq!(setting.all_people().len(), 4);
     }
 
+    /// Team#newのテスト
+    /// リーダーを指定して`Team`のインスタンスを作成する
     #[test]
     fn create_team_by_leader() {
         let team = Team::new(Person{name: "A".to_string()});
@@ -321,6 +407,8 @@ mod tests {
         assert_eq!(team.member.len(), 0);
     }
 
+    /// Team#assignのテスト
+    /// `Team`のインスタンスに対してリーダー以外のメンバーを追加する
     #[test]
     fn assign_member_to_team() {
         let mut team = Team::new(Person{name: "A".to_string()});
@@ -332,6 +420,9 @@ mod tests {
 
     }
 
+    /// Team#create_by_leader_candidatesのテスト
+    /// リーダー候補者とチーム数を渡して複数の`Team`を作成する
+    /// リーダー候補者数 > チーム数の場合はリーダーにアサインされなかったリーダー候補者を合わせて返す
     #[test]
     fn create_team_by_leader_candidates() {
         let leader_candidates = vec![
@@ -346,6 +437,8 @@ mod tests {
         assert_eq!(rest.len(), 1);
     }
 
+    /// Teams#createのテスト
+    /// `TeamsCreationSetting`の内容をもとに複数のチームを作成し、リーダーとリーダー以外のメンバーを設定して返す
     #[test]
     fn create_teams_by_setting() {
         let setting = TeamsCreationSetting{

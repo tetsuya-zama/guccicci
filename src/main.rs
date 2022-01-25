@@ -9,6 +9,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
+        // 引数に設定ファイル名が指定されていない
         panic!("argument setting file name is required");
     }
 
